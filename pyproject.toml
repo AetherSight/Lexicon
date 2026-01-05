@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "lexicon"
 version = "0.1.0"
-description = "FFXIV装备自动标注工具"
+description = "FFXIV Equipment Auto-labeling Tool"
 authors = ["AetherSight"]
 readme = "README.md"
 license = "MIT"
