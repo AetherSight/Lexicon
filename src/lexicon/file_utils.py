@@ -105,7 +105,6 @@ def flatten_labels(result: Dict) -> Dict:
     row = {
         'equipment_id': result.get('equipment_id', ''),
         'equipment_name': result.get('equipment_name', ''),
-        'equipment_type': result.get('equipment_type', ''),
         'front_image': result.get('front_image', ''),
         'back_image': result.get('back_image', ''),
         'timestamp': result.get('timestamp', ''),
@@ -120,11 +119,19 @@ def flatten_labels(result: Dict) -> Dict:
     row['decorations'] = ', '.join(labels.get('decorations', []))
     row['styles'] = ', '.join(labels.get('styles', []))
     row['effects'] = ', '.join(labels.get('effects', []))
-    row['type_specific'] = ', '.join(labels.get('type_specific', []))
+    # 处理 appearance_looks_like（可能是列表或字符串）
+    looks_like = labels.get('appearance_looks_like', [])
+    if isinstance(looks_like, list):
+        row['appearance_looks_like'] = ', '.join(looks_like)
+    elif isinstance(looks_like, str):
+        row['appearance_looks_like'] = looks_like
+    else:
+        row['appearance_looks_like'] = ''
+    row['appearance_description'] = labels.get('appearance_description', '')
     
     # 所有标签合并
     all_labels = []
-    for category in ['colors', 'materials', 'shapes', 'decorations', 'styles', 'effects', 'type_specific']:
+    for category in ['colors', 'materials', 'shapes', 'decorations', 'styles', 'effects']:
         all_labels.extend(labels.get(category, []))
     row['all_labels'] = ', '.join(all_labels)
     
@@ -149,10 +156,10 @@ def save_results_to_csv(results: List[Dict], csv_path: str):
     file_exists = os.path.exists(csv_path)
     with open(csv_path, 'a', newline='', encoding='utf-8-sig') as f:
         fieldnames = [
-            'equipment_id', 'equipment_name', 'equipment_type', 
+            'equipment_id', 'equipment_name', 
             'front_image', 'back_image',
             'colors', 'materials', 'shapes', 'decorations', 
-            'styles', 'effects', 'type_specific', 'all_labels',
+            'styles', 'effects', 'appearance_looks_like', 'appearance_description', 'all_labels',
             'error', 'timestamp'
         ]
         writer = csv.DictWriter(f, fieldnames=fieldnames)

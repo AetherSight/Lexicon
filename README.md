@@ -15,44 +15,41 @@ poetry install
 
 ```bash
 poetry run python -m lexicon \
-    --image_dir "path/to/equipment/images" \
-    --equipment_type "上装" \
-    --max_concurrent 20 \
-    --output_csv "equipment_labels.csv"
+    --dir "path/to/equipment/images" \
+    --output "equipment_labels.csv"
+```
+
+### Test Mode
+
+Set environment variable `DEBUG=true` to process only the first 10 equipment items:
+
+```bash
+DEBUG=true poetry run python -m lexicon \
+    --dir "path/to/equipment/images"
 ```
 
 ### Parameters
 
-- `--image_dir`: Image directory path (required), containing subdirectories in format "equipment_name_equipment_id"
-- `--equipment_type`: Equipment type (required), e.g., "上装", "大剑", "单手剑", etc.
-- `--base_url`: API base URL (default: http://localhost:11434/v1)
-- `--model`: Model name (default: qwen3-vl-thinking:8b)
-- `--max_concurrent`: Maximum concurrency (default: 10, recommended 20-30 for local execution)
-- `--output_csv`: Output CSV file path (default: equipment_labels.csv)
-- `--batch_size`: Batch save size (default: 50)
+- `--dir`: Image directory path (required), containing subdirectories in format "equipment_name_equipment_id"
+- `--api`: API base URL (default: http://localhost:11434/v1)
+- `--model`: Model name (default: qwen3-vl:8b-thinking)
+- `--output`: Output CSV file path (default: equipment_labels.csv)
 
 ### Python Code Usage
 
 ```python
-import asyncio
 from lexicon import FFXIVAutoLabeler
 
-async def main():
-    labeler = FFXIVAutoLabeler(
-        api_key=None,  # Not required for Ollama
-        base_url="http://localhost:11434/v1",
-        model="qwen3-vl-thinking:8b",
-        max_concurrent=20,
-        output_csv="equipment_labels.csv"
-    )
-    
-    await labeler.label_directory(
-        image_directory="path/to/images",
-        equipment_type="上装",
-        batch_size=50
-    )
+labeler = FFXIVAutoLabeler(
+    api_key=None,  # Not required for Ollama
+    base_url="http://localhost:11434/v1",
+    model="qwen3-vl:8b-thinking",
+    output_csv="equipment_labels.csv"
+)
 
-asyncio.run(main())
+labeler.label_directory(
+    image_directory="path/to/images"
+)
 ```
 
 ## License
