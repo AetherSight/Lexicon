@@ -129,6 +129,15 @@ def flatten_labels(result: Dict) -> Dict:
         row['appearance_looks_like'] = ''
     row['appearance_description'] = labels.get('appearance_description', '')
     
+    # 处理自定义标签
+    custom_tags = labels.get('custom_tags', [])
+    if isinstance(custom_tags, list):
+        row['custom_tags'] = ', '.join(custom_tags)
+    elif isinstance(custom_tags, str):
+        row['custom_tags'] = custom_tags
+    else:
+        row['custom_tags'] = ''
+    
     # 所有标签合并
     all_labels = []
     for category in ['colors', 'materials', 'shapes', 'decorations', 'styles', 'effects']:
@@ -159,7 +168,7 @@ def save_results_to_csv(results: List[Dict], csv_path: str):
             'equipment_id', 'equipment_name', 
             'front_image', 'back_image',
             'colors', 'materials', 'shapes', 'decorations', 
-            'styles', 'effects', 'appearance_looks_like', 'appearance_description', 'all_labels',
+            'styles', 'effects', 'appearance_looks_like', 'appearance_description', 'custom_tags', 'all_labels',
             'error', 'timestamp'
         ]
         writer = csv.DictWriter(f, fieldnames=fieldnames)

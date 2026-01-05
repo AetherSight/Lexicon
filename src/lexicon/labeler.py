@@ -60,6 +60,17 @@ def merge_labels(labels1: Dict, labels2: Dict) -> Dict:
     else:
         merged['appearance_description'] = ''
     
+    # 合并自定义标签（取并集）
+    custom1 = labels1.get('custom_tags', [])
+    custom2 = labels2.get('custom_tags', [])
+    if isinstance(custom1, str):
+        custom1 = [custom1] if custom1 else []
+    if isinstance(custom2, str):
+        custom2 = [custom2] if custom2 else []
+    set1 = set(custom1)
+    set2 = set(custom2)
+    merged['custom_tags'] = sorted(list(set1 | set2))  # 取并集并排序
+    
     return merged
 
 
