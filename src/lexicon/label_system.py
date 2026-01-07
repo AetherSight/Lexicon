@@ -244,35 +244,6 @@ APPEARANCE_TYPES = [
     "其他"  # 如果都不像，可以选择"其他"
 ]
 
-# 支持的装备类型列表（仅用于验证输入，不用于AI识别）
-ALLOWED_EQUIPMENT_TYPES = [
-    "头部",
-    "衣服",
-    "手部",
-    "腿部",
-    "脚部",
-    "项链",
-    "手镯",
-    "戒指",
-    "双手剑",
-    "单手剑",
-    "刺剑",
-    "武士刀",
-    "双剑",
-    "对剑",
-    "火枪",
-    "枪刃",
-    "盾牌",
-    "幻杖",
-    "咒杖",
-    "弓箭",
-    "魔导书",
-]
-
-def get_allowed_equipment_types():
-    """获取所有允许的装备类型列表"""
-    return ALLOWED_EQUIPMENT_TYPES.copy()
-
 
 def get_all_labels():
     """获取所有标签列表"""
@@ -284,6 +255,7 @@ def get_all_labels():
     all_labels.extend(STYLE_LABELS)
     all_labels.extend(EFFECT_LABELS)
     return all_labels
+
 
 def get_prompt_template() -> str:
     """
