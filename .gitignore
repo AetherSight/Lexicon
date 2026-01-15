@@ -39,3 +39,4 @@ equipment_labels.csv
 .DS_Store
 Thumbs.db
 
+.env

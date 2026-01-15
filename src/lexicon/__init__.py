@@ -1,5 +1,5 @@
 """
-FFXIV装备自动标注工具包
+FFXIV Equipment Auto-labeling Package
 """
 
 from .labeler import FFXIVAutoLabeler
