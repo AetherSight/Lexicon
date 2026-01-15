@@ -4,8 +4,10 @@ Provides API endpoints to search equipment by tags
 """
 
 import os
+import csv
 from pathlib import Path
 from typing import List, Dict, Optional, Set
+from collections import defaultdict
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
@@ -23,6 +25,8 @@ app = FastAPI(title="FFXIV Equipment Matcher", version="1.0.0")
 # Global variables
 equipment_df: Optional[pd.DataFrame] = None
 all_tags_cache: Set[str] = set()
+gear_model_data: Optional[Dict[str, Dict]] = None
+model_groups: Optional[Dict[str, List[str]]] = None
 
 
 
@@ -115,6 +119,76 @@ def build_tags_cache(df: pd.DataFrame) -> Set[str]:
     return tags
 
 
+def load_gear_model_info(csv_path: str = None):
+    """Load gear model info CSV file"""
+    global gear_model_data, model_groups
+    
+    if csv_path is None:
+        PROJECT_ROOT = Path(__file__).parent.parent.parent
+        csv_path = str(PROJECT_ROOT / "csv" / "gear_model_info.csv")
+    
+    if not os.path.exists(csv_path):
+        gear_model_data = {}
+        model_groups = defaultdict(list)
+        return
+    
+    gear_model_data = {}
+    model_groups = defaultdict(list)
+    
+    try:
+        with open(csv_path, 'r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                item_id = row.get('物品ID', '')
+                item_name = row.get('物品名称', '').strip('"')
+                model_path = row.get('模型路径', '')
+                
+                if not item_id or not item_name or not model_path:
+                    continue
+                
+                gear_model_data[item_id] = {
+                    'id': item_id,
+                    'name': item_name,
+                    'model_path': model_path
+                }
+                
+                model_groups[model_path].append(item_id)
+    except Exception as e:
+        print(f"Warning: Failed to load gear model info: {e}")
+        gear_model_data = {}
+        model_groups = defaultdict(list)
+
+
+def get_same_model_gears(equipment_id: str) -> List[Dict[str, str]]:
+    """Get same model gears by equipment ID"""
+    global gear_model_data, model_groups
+    
+    if not gear_model_data or not model_groups:
+        return []
+    
+    gear_info = gear_model_data.get(str(equipment_id))
+    if not gear_info:
+        return []
+    
+    model_path = gear_info.get('model_path')
+    if not model_path:
+        return []
+    
+    same_model_gear_ids = model_groups.get(model_path, [])
+    
+    same_model_gears = []
+    for gid in same_model_gear_ids:
+        if gid != str(equipment_id):
+            gear_info_item = gear_model_data.get(gid)
+            if gear_info_item:
+                same_model_gears.append({
+                    'id': gear_info_item['id'],
+                    'name': gear_info_item['name']
+                })
+    
+    return same_model_gears
+
+
 @app.on_event("startup")
 async def startup_event():
     """Load data when application starts"""
@@ -135,6 +209,10 @@ async def startup_event():
         print(f"Warning: {e}")
         equipment_df = pd.DataFrame()
         all_tags_cache = set()
+    
+    load_gear_model_info()
+    if gear_model_data:
+        print(f"Loaded {len(gear_model_data)} gear model records")
 
 
 @app.get("/tags")
@@ -170,8 +248,11 @@ async def get_equipment_by_id(equipment_id: str):
     row = matching_rows.iloc[0]
     
     # Parse all label columns
+    equipment_id_str = str(row.get('equipment_id', ''))
+    same_model_gears = get_same_model_gears(equipment_id_str)
+    
     result = {
-        'equipment_id': str(row.get('equipment_id', '')),
+        'equipment_id': equipment_id_str,
         'equipment_name': str(row.get('equipment_name', '')),
         'colors': list(parse_label_string(str(row.get('colors', '')))),
         'materials': list(parse_label_string(str(row.get('materials', '')))),
@@ -182,6 +263,7 @@ async def get_equipment_by_id(equipment_id: str):
         'custom_tags': list(parse_label_string(str(row.get('custom_tags', '')))),
         'appearance_looks_like': list(parse_label_string(str(row.get('appearance_looks_like', '')))),
         'appearance_description': str(row.get('appearance_description', '')) if pd.notna(row.get('appearance_description')) else '',
+        'same_model_gears': same_model_gears
     }
     
     # Add optional fields if they exist
@@ -216,9 +298,13 @@ async def search_equipment(
         equipment_name = row.get('equipment_name', '')
         all_labels = row.get('all_labels', '')
         appearance_description = row.get('appearance_description', '')
+        custom_tags = row.get('custom_tags', '')
         
         # Search in all_labels
         equipment_labels = parse_label_string(str(all_labels)) if all_labels and pd.notna(all_labels) else set()
+        
+        # Search in custom_tags
+        custom_tags_set = parse_label_string(str(custom_tags)) if custom_tags and pd.notna(custom_tags) else set()
         
         # Search in appearance_description (case-insensitive)
         description_text = str(appearance_description).lower() if appearance_description and pd.notna(appearance_description) else ""
@@ -228,6 +314,9 @@ async def search_equipment(
         
         # Search in all_labels
         matched_labels = search_tags & equipment_labels
+        
+        # Search in custom_tags
+        matched_custom_tags = search_tags & custom_tags_set
         
         # Check if any tag appears in description
         description_matches = []
@@ -241,13 +330,14 @@ async def search_equipment(
             if tag.lower() in name_text:
                 name_matches.append(tag)
         
-        # Check if all tags are matched (in labels, description, or name)
-        all_matched_tags = matched_labels | set(description_matches) | set(name_matches)
+        # Check if all tags are matched (in labels, custom_tags, description, or name)
+        all_matched_tags = matched_labels | matched_custom_tags | set(description_matches) | set(name_matches)
         all_tags_matched = len(all_matched_tags) == len(search_tags)
         
         # Only include if all tags are matched
         if all_tags_matched:
             match_score = len(all_matched_tags) / len(search_tags) if search_tags else 0
+            same_model_gears = get_same_model_gears(str(equipment_id))
             results.append({
                 'equipment_id': str(equipment_id),
                 'equipment_name': str(equipment_name),
@@ -255,8 +345,10 @@ async def search_equipment(
                 'appearance_description': str(appearance_description) if appearance_description and pd.notna(appearance_description) else '',
                 'match_score': match_score,
                 'matched_labels': list(matched_labels),
+                'matched_custom_tags': list(matched_custom_tags),
                 'description_matches': description_matches,
-                'name_matches': name_matches
+                'name_matches': name_matches,
+                'same_model_gears': same_model_gears
             })
     
     # Sort by match score (descending)
