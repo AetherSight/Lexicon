@@ -266,12 +266,6 @@ async def get_equipment_by_id(equipment_id: str):
         'same_model_gears': same_model_gears
     }
     
-    # Add optional fields if they exist
-    if 'front_image' in row:
-        result['front_image'] = str(row.get('front_image', '')) if pd.notna(row.get('front_image')) else ''
-    if 'back_image' in row:
-        result['back_image'] = str(row.get('back_image', '')) if pd.notna(row.get('back_image')) else ''
-    
     return JSONResponse(result)
 
 
